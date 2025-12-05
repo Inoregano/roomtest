@@ -2,7 +2,7 @@ local gl = {
 	cellSize = 16,
 	windowWidth = 240,
 	windowHeight = 160,
-	windowScale = 2,
+	windowScale = 3,
 }
 function gl.clamp(val, min, max) 
 	if val < min then return min elseif val > max then return max end return val 
@@ -28,6 +28,12 @@ function gl.iterateTiles(x1, y1, x2, y2)
 		end
 		return x, y
 	end
+end
+
+function gl.switch(val, tbl)
+	if not tbl[val] then return nil end
+	if type(tbl[val]) == "function" then return tbl[val]() end
+	return tbl[val]
 end
 
 return gl

@@ -1,5 +1,5 @@
 local font = require"font/font".pixel
-local bump = require"bump/bump"
+local tween = require"tween/tween"
 local gl = require"scripts/global"
 local player = require"scripts/player"
 
@@ -8,21 +8,22 @@ math.randomseed(os.time())
 
 love.window.setMode(gl.windowWidth * gl.windowScale, gl.windowHeight * gl.windowScale)
 
-function newSheet(img, cellSize)
+function newSheet(img, cellX, cellY)
+	cellY = cellY or cellX
 	local sheet = {
 		img = love.graphics.newImage(img),
 		quads = {},
 	}
-	sheet.width = sheet.img:getWidth() / cellSize
-	sheet.height = sheet.img:getHeight() / cellSize
+	sheet.width = sheet.img:getWidth() / cellX
+	sheet.height = sheet.img:getHeight() / cellY
 	sheet.batch = love.graphics.newSpriteBatch(sheet.img)
 	for y = 1, sheet.height do
 		sheet.quads[y] = {}
 		for x = 1, sheet.width do
 			sheet.quads[y][x] = love.graphics.newQuad(
-				(x - 1) * cellSize,
-				(y - 1) * cellSize,
-				cellSize, cellSize,
+				(x - 1) * cellX,
+				(y - 1) * cellY,
+				cellX, cellY,
 				sheet.img
 			)
 		end
@@ -33,6 +34,7 @@ end
 
 local a = {
 	tiles = newSheet("assets/tiles.png", gl.cellSize),
+	player = newSheet("assets/player.png", 10, 13),
 }
 
 function newEntity(name)
@@ -111,10 +113,12 @@ function love.update(dt)
 	mouse.x = math.floor(mouse.absx / gl.cellSize) + 1
 	mouse.y = math.floor(mouse.absy / gl.cellSize) + 1
 
+	--player movement logic
 	player.xdir = (love.keyboard.isDown("t") and 1 or 0) - (love.keyboard.isDown("r") and 1 or 0)
 	player.ydir = (love.keyboard.isDown("s") and 1 or 0) - (love.keyboard.isDown("f") and 1 or 0)
-	if player.ydir ~= 0 then player.dir = player.ydir * 2 else player.dir = player.xdir end
 	player:move(player.xdir, player.ydir)
+	player:updateState()
+	player:updateFrame(dt)
 end
 function love.keypressed(key)
 	player:move(
@@ -140,9 +144,16 @@ function love.draw()
 	end
 	love.graphics.draw(a.tiles.batch)
 	
-	love.graphics.rectangle("fill",
-		player.x, player.y, player.width, player.height
-	)
+	love.graphics.draw(a.player.img, a.player.quads[gl.switch(player.state..player.direction, {
+		["idleright"] =		1,
+		["idledown"] =		2,
+		["idleleft"] =		3,
+		["idleup"] =		4,
+		["movingright"] =	5,
+		["movingdown"] =	6,
+		["movingleft"] =	7,
+		["movingup"] =		8,
+	})][math.floor(player.frame + 1)], player.x, player.y)
 	love.graphics.setColor(0, 1, 1)
 
 	love.graphics.rectangle("line",
@@ -165,7 +176,12 @@ function love.draw()
 		)
 	end
 	font:print(
-		("%d, %d\n%d, %d"):format(player.x, player.y, player.gridX, player.gridY),
+		("%d, %d\n%d, %d\n%s %s\n%d/%d"):format(
+			player.x, player.y,
+			player.gridX, player.gridY,
+			player.state, player.direction,
+			player.frame, player.maxFrame
+		),
 		room.width * gl.cellSize, 0
 	)
 	

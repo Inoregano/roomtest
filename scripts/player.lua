@@ -2,11 +2,32 @@ local gl = require"scripts/global"
 local player = {
 	x = 0,
 	y = 0,
-	width = gl.cellSize, height = gl.cellSize,
-	xdir = 0, ydir = 0, dir = 0,
+	width = 10, height = 13,
+	xdir = 0, ydir = 0,
+	direction = "right", state = "idle",
+	frame = 0, maxFrame = 4, animSpeed = 4,
 }
 function player:init(room)
 	self.room = room
+end
+function player:updateState()
+	if self.xdir ~= 0 or self.ydir ~= 0 then 
+		if self.state ~= "moving" then
+			self.frame = 0
+		end
+		self.state = "moving"
+		if self.ydir ~= 0 then
+			self.direction = (self.ydir == -1) and "up" or "down"
+		else
+			self.direction = (self.xdir == -1) and "left" or "right"
+		end
+	else
+		self.state = "idle"
+	end
+end
+
+function player:updateFrame(dt)
+	self.frame = (self.frame + dt * self.animSpeed) % self.maxFrame
 end
 
 function player:checkTouchingTilemap(field, status)
@@ -32,27 +53,21 @@ function player:checkTouchingTilemap(field, status)
 end
 
 function player:move(x, y)
-	--adding widthbuffer/heightbuffer to x/y gives us the forwardmost edge in direction of movement
-	local widthbuffer, heightbuffer = 0, 0
-	if x > 0 then widthbuffer = self.width end
-	if y > 0 then heightbuffer = self.width end
-
-	
 	--move x first
-	self.x = gl.clamp(self.x + x, 0, (self.room.width - 1) * gl.cellSize)
+	self.x = gl.clamp(self.x + x, 0, (self.room.width) * gl.cellSize - self.width)
 	--if inside a wall, then move to appropriate edge
 	if self:checkTouchingTilemap() then
 		self.x = gl.clamp(
-			(math.floor(self.x / gl.cellSize) + ((x < 0) and 1 or 0)) * gl.cellSize, 
-			0, (self.room.height - 1) * gl.cellSize
+			(math.floor(self.x / gl.cellSize) + 1) * gl.cellSize - (x > 0 and self.width or 0),
+			0, (self.room.height) * gl.cellSize - self.width
 		)
 	end
 	--same for y
-	self.y = gl.clamp(self.y + y, 0, (self.room.height - 1) * gl.cellSize)
+	self.y = gl.clamp(self.y + y, 0, (self.room.height) * gl.cellSize - self.height)
 	if self:checkTouchingTilemap() then
 		self.y = self.y - y gl.clamp(
-			(math.floor(self.y / gl.cellSize) + ((y < 0) and 1 or 0)) * gl.cellSize,
-			0, (self.room.height - 1) * gl.cellSize
+			(math.floor(self.y / gl.cellSize + 1)) * gl.cellSize - (y > 0 and self.height or 0),
+			0, (self.room.height) * gl.cellSize - self.height
 		)
 	end
 
